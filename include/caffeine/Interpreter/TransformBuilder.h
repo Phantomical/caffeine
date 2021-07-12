@@ -1,6 +1,8 @@
 #pragma once
 
 #include "caffeine/Interpreter/Context.h"
+#include "caffeine/Interpreter/InterpreterContext.h"
+
 #include <array>
 #include <cstdlib>
 #include <llvm/ADT/FunctionExtras.h>
@@ -49,8 +51,8 @@ public:
     immer::map<size_t, LLVMValue> values;
 
   public:
-    Context ctx;
-    Interpreter* interpreter;
+    std::unique_ptr<Context> ctx;
+    InterpreterContext interpreter;
 
   public:
     LLVMValue lookup(const Argument& arg);
@@ -62,8 +64,17 @@ public:
     // Return a value that points to the output of the current operation.
     Value current() const;
 
+    // These make it easier to access the context helper functions
+    InterpreterContext* operator->() {
+      return &interpreter;
+    }
+    const InterpreterContext* operator->() const {
+      return &interpreter;
+    }
+
   private:
     ContextState(Context&& ctx, Interpreter* interp);
+    ContextState(Context&& ctx, const InterpreterContext& interp);
 
     friend class TransformBuilder;
   };

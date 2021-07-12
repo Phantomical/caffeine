@@ -512,9 +512,9 @@ ExecutionResult Interpreter::visitStoreInst(llvm::StoreInst& inst) {
   auto resolved = ops.resolve(dest, inst.getValueOperand()->getType());
   ops.transform([&](TransformBuilder::ContextState& state) {
     auto ptr = state.lookup(resolved).scalar().pointer();
-    Allocation& alloc = state.ctx.heaps.ptr_allocation(ptr);
+    Allocation& alloc = state.interpreter.ptr_allocation(ptr);
     alloc.write(ptr.offset(), inst.getValueOperand()->getType(), value,
-                state.ctx.heaps, layout);
+                state.ctx->heaps, layout);
   });
 
   return ops.execute(this);

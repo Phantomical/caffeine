@@ -96,7 +96,8 @@ Allocation& InterpreterContext::ptr_allocation(const Pointer& ptr) {
   return ctx->heaps.ptr_allocation(ptr);
 }
 
-llvm::SmallVector<Pointer, 1> InterpreterContext::ptr_resolve(const Pointer& unresolved) {
+llvm::SmallVector<Pointer, 1>
+InterpreterContext::ptr_resolve(const Pointer& unresolved) {
   return ctx->heaps.resolve(solver, unresolved, *ctx);
 }
 

@@ -6,11 +6,16 @@
 namespace caffeine {
 
 TransformBuilder::ContextState::ContextState(Context&& ctx, Interpreter* interp)
-    : ctx(std::move(ctx)), interpreter(interp) {}
+    : ContextState(std::move(ctx), InterpreterContext(interp)) {}
+
+TransformBuilder::ContextState::ContextState(Context&& ctx,
+                                             const InterpreterContext& interp)
+    : ctx(std::make_unique<Context>(std::move(ctx))),
+      interpreter(interp.with_other(this->ctx.get())) {}
 
 LLVMValue TransformBuilder::ContextState::lookup(const Argument& arg) {
   if (auto val = std::get_if<llvm::Value*>(&arg))
-    return ctx.lookup(*val);
+    return interpreter.lookup(*val);
   return values.at(std::get<TransformBuilder::Value>(arg).index);
 }
 
@@ -50,7 +55,7 @@ ExecutionResult TransformBuilder::execute(Interpreter* interp) const {
     stack.pop();
 
     if (state.inst >= operations.size()) {
-      output.push_back(std::move(state.ctx));
+      output.push_back(std::move(*state.ctx));
       continue;
     }
 
@@ -74,17 +79,15 @@ TransformBuilder::Value TransformBuilder::resolve(Argument pointer,
                                                   llvm::Type* type,
                                                   bool die_on_failure) {
   return transform_fork([=](ContextState&& state, InsertFn& insert_fn) {
-    Context& ctx = state.ctx;
-    auto solver = state.interpreter->solver;
-    const llvm::DataLayout& layout = ctx.mod->getDataLayout();
+    const llvm::DataLayout& layout = state->layout();
+    Context& ctx = *state.ctx;
 
     auto result_id = state.current();
     auto unresolved = state.lookup(pointer).scalar().pointer();
     auto assertion =
         ctx.heaps.check_valid(unresolved, layout.getTypeStoreSize(type));
-    if (ctx.check(solver, !assertion) == SolverResult::SAT) {
-      state.interpreter->logFailure(ctx, !assertion,
-                                    "invalid pointer load/store");
+    if (state->check(!assertion) == SolverResult::SAT) {
+      state->log_failure(!assertion, "invalid pointer load/store");
 
       if (die_on_failure) {
         // If we're getting an out-of-bounds access then there's a pretty
@@ -95,7 +98,7 @@ TransformBuilder::Value TransformBuilder::resolve(Argument pointer,
       }
     }
 
-    auto resolved = ctx.heaps.resolve(solver, unresolved, ctx);
+    auto resolved = state->ptr_resolve(unresolved);
     auto forks = ctx.fork(resolved.size());
 
     for (auto [fork, ptr] : llvm::zip(forks, resolved)) {
@@ -121,12 +124,12 @@ TransformBuilder::Value TransformBuilder::transform_fork(TransformFn&& func) {
 
 void TransformBuilder::assign(llvm::Value* value, Argument arg) {
   transform([=](ContextState& state) {
-    state.ctx.stack_top().insert(value, state.lookup(arg));
+    state->top_frame().insert(value, state.lookup(arg));
   });
 }
 void TransformBuilder::assign(llvm::Value* value, LLVMValue arg) {
   transform([value, marg = std::move(arg)](ContextState& state) {
-    state.ctx.stack_top().insert(value, marg);
+    state->top_frame().insert(value, marg);
   });
 }
 void TransformBuilder::assign(llvm::Value* value, LLVMScalar arg) {
@@ -135,10 +138,10 @@ void TransformBuilder::assign(llvm::Value* value, LLVMScalar arg) {
 
 TransformBuilder::Value TransformBuilder::read(Argument arg, llvm::Type* type) {
   return transform([=](ContextState& state) {
-    const auto& layout = state.ctx.mod->getDataLayout();
+    const auto& layout = state->layout();
 
     auto ptr = state.lookup(arg).scalar().pointer();
-    Allocation& alloc = state.ctx.heaps.ptr_allocation(ptr);
+    Allocation& alloc = state->ptr_allocation(ptr);
     state.insert(state.current(), alloc.read(ptr.offset(), type, layout));
   });
 }

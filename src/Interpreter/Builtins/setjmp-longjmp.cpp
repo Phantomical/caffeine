@@ -126,8 +126,8 @@ ExecutionResult Interpreter::visitSetjmp(llvm::CallInst& inst) {
   ops.transform([&](TransformBuilder::ContextState& state) {
     auto ptr = state.lookup(resolved).scalar().pointer();
 
-    Allocation& alloc = state.ctx.heaps[ptr.heap()][ptr.alloc()];
-    alloc.write(ptr.offset(), jmpbuf_ty, jmpbuf, state.ctx.heaps, layout);
+    Allocation& alloc = state.ctx->heaps[ptr.heap()][ptr.alloc()];
+    alloc.write(ptr.offset(), jmpbuf_ty, jmpbuf, state.ctx->heaps, layout);
   });
   ops.assign(&inst,
              ConstantInt::CreateZero(inst.getType()->getIntegerBitWidth()));
@@ -170,13 +170,13 @@ ExecutionResult Interpreter::visitLongjmp(llvm::CallInst& inst) {
     auto jmp_tgt = jmpbuf.member(1).scalar().expr();
 
     if (!llvm::isa<ConstantInt>(frame_id.get())) {
-      logFailure(state.ctx, Assertion::constant(false),
+      logFailure(*state.ctx, Assertion::constant(false),
                  "symbolic longjmp targets are not supported.");
       return;
     }
 
     if (!llvm::isa<ConstantInt>(jmp_tgt.get())) {
-      logFailure(state.ctx, Assertion::constant(false),
+      logFailure(*state.ctx, Assertion::constant(false),
                  "symbolic longjmp targets are not supported.");
       return;
     }
@@ -207,17 +207,17 @@ ExecutionResult Interpreter::visitLongjmp(llvm::CallInst& inst) {
     // in which the corresponding setjmp call was made.
 
     std::optional<size_t> target_frame =
-        findJumpTargetFrame(state.ctx, frame_id, jmp_tgt);
+        findJumpTargetFrame(*state.ctx, frame_id, jmp_tgt);
 
     if (!target_frame.has_value()) {
-      logFailure(state.ctx, Assertion::constant(false),
+      logFailure(*state.ctx, Assertion::constant(false),
                  "invalid longjmp target");
       return;
     }
 
-    state.ctx.stack.erase(state.ctx.stack.begin() + *target_frame,
-                          state.ctx.stack.end());
-    auto& frame = state.ctx.stack_top();
+    state.ctx->stack.erase(state.ctx->stack.begin() + *target_frame,
+                           state.ctx->stack.end());
+    auto& frame = state.ctx->stack_top();
     frame.insert(jmp_tgt, state.lookup(inst.getArgOperand(1)));
     frame.jump_to(jmp_tgt->getParent());
 
