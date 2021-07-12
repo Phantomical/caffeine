@@ -135,6 +135,7 @@ private:
   ExecutionResult visitLongjmp(llvm::CallInst& inst);
 
   friend class TransformBuilder;
+  friend class InterpreterContext;
 
 public:
   static std::unordered_map<std::string_view, InterpreterFunction>&

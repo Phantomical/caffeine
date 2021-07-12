@@ -10,6 +10,9 @@ class Context;
 class FailureLogger;
 class ExecutionPolicy;
 class ExecutionContextStore;
+class Allocation;
+class TransformBuilder;
+class Interpreter;
 
 /**
  * Wrapper around the required state of an interpreter that provides convenience
@@ -26,6 +29,7 @@ public:
   InterpreterOptions options;
 
 public:
+  InterpreterContext(Interpreter* interpeter);
   InterpreterContext(Context* ctx, const std::shared_ptr<Solver>& solver,
                      FailureLogger* logger, ExecutionPolicy* policy,
                      ExecutionContextStore* store,
@@ -35,6 +39,7 @@ public:
   // with ctx.
   InterpreterContext with_other(Context* ctx) const;
 
+  const llvm::DataLayout& layout() const;
   llvm::Module* module() const;
   Context* context();
 
@@ -60,6 +65,11 @@ public:
   SolverResult resolve(const Assertion& extra = Assertion());
 
   void log_failure(const Assertion& assertion, std::string_view message);
+
+  // Heap Management Helpers
+
+  Allocation& ptr_allocation(const Pointer& ptr);
+  llvm::SmallVector<Pointer, 1> ptr_resolve(const Pointer& unresolved);
 };
 
 } // namespace caffeine

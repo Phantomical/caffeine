@@ -1,12 +1,19 @@
 #include "caffeine/Interpreter/InterpreterContext.h"
 #include "caffeine/Interpreter/Context.h"
 #include "caffeine/Interpreter/FailureLogger.h"
+#include "caffeine/Interpreter/Interpreter.h"
 #include "caffeine/Interpreter/Options.h"
 #include "caffeine/Interpreter/Policy.h"
 #include "caffeine/Interpreter/Store.h"
+#include "caffeine/Interpreter/TransformBuilder.h"
+#include "caffeine/Memory/MemHeap.h"
 
 namespace caffeine {
 
+InterpreterContext::InterpreterContext(Interpreter* interpreter)
+    : InterpreterContext(interpreter->ctx, interpreter->solver,
+                         interpreter->logger, interpreter->policy,
+                         interpreter->store, interpreter->options) {}
 InterpreterContext::InterpreterContext(Context* ctx,
                                        const std::shared_ptr<Solver>& solver,
                                        FailureLogger* logger,
@@ -22,6 +29,9 @@ InterpreterContext InterpreterContext::with_other(Context* ctx) const {
   return copy;
 }
 
+const llvm::DataLayout& InterpreterContext::layout() const {
+  return module()->getDataLayout();
+}
 llvm::Module* InterpreterContext::module() const {
   return ctx->mod;
 }
@@ -80,6 +90,14 @@ void InterpreterContext::log_failure(const Assertion& assertion,
 
   logger->log_failure(result.model(), *ctx, Failure(assertion, message));
   policy->on_path_complete(*ctx, ExecutionPolicy::Fail, assertion);
+}
+
+Allocation& InterpreterContext::ptr_allocation(const Pointer& ptr) {
+  return ctx->heaps.ptr_allocation(ptr);
+}
+
+llvm::SmallVector<Pointer, 1> InterpreterContext::ptr_resolve(const Pointer& unresolved) {
+  return ctx->heaps.resolve(solver, unresolved, *ctx);
 }
 
 } // namespace caffeine
