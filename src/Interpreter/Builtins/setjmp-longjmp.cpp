@@ -110,7 +110,6 @@ ExecutionResult Interpreter::visitSetjmp(llvm::CallInst& inst) {
   const auto& layout = inst.getModule()->getDataLayout();
   auto& frame = ctx->stack_top();
 
-  auto jmpbuf = getJmpBuf(frame.frame_id, inst);
   auto jmpbuf_ty = getJmpBufType(inst.getContext());
 
   CAFFEINE_ASSERT(
@@ -123,12 +122,8 @@ ExecutionResult Interpreter::visitSetjmp(llvm::CallInst& inst) {
   auto ops = TransformBuilder();
 
   auto resolved = ops.resolve(inst.getArgOperand(0), jmpbuf_ty);
-  ops.transform([&](TransformBuilder::ContextState& state) {
-    auto ptr = state.lookup(resolved).scalar().pointer();
-
-    Allocation& alloc = state.ctx->heaps[ptr.heap()][ptr.alloc()];
-    alloc.write(ptr.offset(), jmpbuf_ty, jmpbuf, state.ctx->heaps, layout);
-  });
+  auto jmpbuf = ops.value(getJmpBuf(frame.frame_id, inst));
+  ops.write(resolved, jmpbuf, jmpbuf_ty);
   ops.assign(&inst,
              ConstantInt::CreateZero(inst.getType()->getIntegerBitWidth()));
 
