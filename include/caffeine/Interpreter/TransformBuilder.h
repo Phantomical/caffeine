@@ -136,6 +136,10 @@ public:
   // (usually by a call to resolve).
   Value read(Argument arg, llvm::Type* type);
 
+  // Write a value to the provided pointer. The pointer must have been resolved
+  // (usually by a call to resolve).
+  void write(Argument ptr, Argument val, llvm::Type* type);
+
   ExecutionResult execute(Interpreter* interp) const;
 };
 

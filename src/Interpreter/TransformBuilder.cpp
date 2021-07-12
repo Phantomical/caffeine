@@ -146,4 +146,14 @@ TransformBuilder::Value TransformBuilder::read(Argument arg, llvm::Type* type) {
   });
 }
 
+void TransformBuilder::write(Argument ptr, Argument value, llvm::Type* type) {
+  transform([=](ContextState& state) {
+    auto dst = state.lookup(ptr).scalar().pointer();
+    auto val = state.lookup(value);
+
+    Allocation& alloc = state->ptr_allocation(dst);
+    alloc.write(dst.offset(), type, val, state.ctx->heaps, state->layout());
+  });
+}
+
 } // namespace caffeine
