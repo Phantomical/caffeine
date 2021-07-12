@@ -132,6 +132,10 @@ public:
   void assign(llvm::Value* value, LLVMValue arg);
   void assign(llvm::Value* value, LLVMScalar arg);
 
+  // Assign a value to a slot within the generated state
+  Value value(LLVMValue arg);
+  Value value(LLVMScalar arg);
+
   // Read a value from the provided pointer. The pointer must have been resolved
   // (usually by a call to resolve).
   Value read(Argument arg, llvm::Type* type);

@@ -136,6 +136,17 @@ void TransformBuilder::assign(llvm::Value* value, LLVMScalar arg) {
   assign(value, LLVMValue(std::move(arg)));
 }
 
+TransformBuilder::Value TransformBuilder::value(LLVMValue value) {
+  return transform([val = std::move(value)](ContextState& state) {
+    state.insert(state.current(), val);
+  });
+}
+TransformBuilder::Value TransformBuilder::value(LLVMScalar value) {
+  return transform([val = std::move(value)](ContextState& state) {
+    state.insert(state.current(), LLVMValue(val));
+  });
+}
+
 TransformBuilder::Value TransformBuilder::read(Argument arg, llvm::Type* type) {
   return transform([=](ContextState& state) {
     const auto& layout = state->layout();
